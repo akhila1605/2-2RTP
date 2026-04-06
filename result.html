@@ -2,16 +2,31 @@
 <html>
 <head>
     <title>Result</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
-    <h2>Screening Result</h2>
+<h2>Role: {{ role }}</h2>
+<h2>{{ result }}</h2>
 
-    <p>Match Score: {{score}}%</p>
-    <p>Status: {{result}}</p>
+{% if reasons %}
+<h3>Reasons:</h3>
+<ul>
+    {% for r in reasons %}
+        <li>{{ r }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
 
-    <a href="/">Go Back</a>
+{% if suggestions %}
+<h3>Suggestions:</h3>
+<ul>
+    {% for s in suggestions %}
+        <li>{{ s }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<a href="/">Go Back</a>
 
 </body>
 </html>
