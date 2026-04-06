@@ -1,1 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Resume</title>
+</head>
+<body>
 
+<h2>Role: {{ role }}</h2>
+
+<form action="/result" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="role" value="{{ role }}">
+
+    <input type="file" name="resume" required>
+    <br><br>
+
+    <button type="submit">Upload & Analyze</button>
+</form>
+
+</body>
+</html>
