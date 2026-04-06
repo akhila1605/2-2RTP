@@ -1,55 +1,90 @@
 from flask import Flask, render_template, request
-import PyPDF2
 import docx
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from PyPDF2 import PdfReader
 
 app = Flask(__name__)
 
-def extract_text(file):
+# Keywords
+job_keywords = {
+    "data scientist": ["python", "machine learning", "data"],
+    "web developer": ["html", "css", "javascript"],
+    "java developer": ["java", "oop"]
+}
+
+# Read DOCX
+def read_docx(file):
+    doc = docx.Document(file)
     text = ""
-
-    if file.filename.endswith('.pdf'):
-        pdf = PyPDF2.PdfReader(file)
-        for page in pdf.pages:
-            text += page.extract_text()
-
-    elif file.filename.endswith('.docx'):
-        doc = docx.Document(file)
-        for para in doc.paragraphs:
-            text += para.text
-
+    for para in doc.paragraphs:
+        text += para.text
     return text
 
+# Read PDF
+def read_pdf(file):
+    reader = PdfReader(file)
+    text = ""
+    for page in reader.pages:
+        if page.extract_text():
+            text += page.extract_text()
+    return text
 
-def match_resume(job_desc, resume):
-    cv = CountVectorizer()
-    matrix = cv.fit_transform([job_desc, resume])
-    similarity = cosine_similarity(matrix)[0][1]
-    return round(similarity * 100, 2)
+# Analyze
+def analyze_resume(role, text):
+    role = role.lower()
 
+    if role not in job_keywords:
+        return "Rejected ❌", ["Invalid role"], ["Enter valid role"]
+
+    keywords = job_keywords[role]
+    missing = []
+
+    for word in keywords:
+        if word not in text.lower():
+            missing.append(word)
+
+    if len(missing) == 0:
+        return "Selected ✅", [], []
+    else:
+        return "Rejected ❌", [f"Missing: {', '.join(missing)}"], [f"Add {w}" for w in missing]
+
+# ROUTES
 
 @app.route('/')
 def home():
-    return render_template('index.html')
-
+    return render_template('role.html')
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    job_role = request.form['job_role']
-    file = request.files['resume']
+    role = request.form['role']
+    return render_template('upload.html', role=role)
 
-    # File validation
-    if not (file.filename.endswith('.pdf') or file.filename.endswith('.docx')):
-        return "Upload only PDF or DOCX"
+@app.route('/result', methods=['POST'])
+def result():
+    role = request.form['role']
 
-    resume_text = extract_text(file)
-    score = match_resume(job_role, resume_text)
+    file = request.files.get('resume')
 
-    result = "Selected" if score > 50 else "Not Selected"
+    if not file or file.filename == "":
+        return "No file selected"
 
-    return render_template('result.html', score=score, result=result)
+    # File reading
+    if file.filename.endswith('.docx'):
+        text = read_docx(file)
+    elif file.filename.endswith('.pdf'):
+        text = read_pdf(file)
+    else:
+        return "Only PDF or DOCX allowed"
 
+    if text.strip() == "":
+        return "File is empty or unreadable"
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    result, reasons, suggestions = analyze_resume(role, text)
+
+    return render_template('result.html',
+                           result=result,
+                           reasons=reasons,
+                           suggestions=suggestions,
+                           role=role)
+
+if __name__ == '__main__':
+    app.run(debug=True)
